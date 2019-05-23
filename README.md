@@ -2,13 +2,117 @@
 
 
 
-Based on Percona XtraDB Cluster 5.7.25
+## Build the environment
 
-3-node cluster
+Based on Percona XtraDB Cluster 5.7.25 running on CentOS 7, the environment consist on a 3-node cluster plus an additional VM that will serve as the app server (sysbench) and the PMM host. 
 
-Running on CentOS 7
+### Requirements
 
+- Vagrant 2.2.0
+- VirtualBox 5.2.20
 
+### Get the environment up and running
+
+- Clone the repo: `git clone https://github.com/nethalo/pxc-break-fix-lab.git`
+- Go to the directory: `cd pxc-break-fix-lab`
+- Install the hostmanager vagrant plugin: `vagrant plugin install vagrant-hostmanager`
+- Start the build: `vagrant up; vagrant hostmanager;`
+
+### Login into the VMs
+
+For every machine you want to login into, execute vagrant ssh <name>. For example, to ssh to the first node:
+
+```
+vagrant ssh pxc1
+```
+
+## Launch the cluster
+
+Now that the VMs are running, the next step is to get a fully functional PXC cluster running.
+
+### Bootstrap the cluster
+
+[ pxc1 ] `sudo systemctl start mysql@bootstrap.service`
+
+### Change temp root password:
+
+[ pxc1 ] `cat /var/log/mysqld.log | grep password`
+[ pxc1 ] `mysql -uroot -p`
+[ pxc1 ] `SET SESSION sql_log_bin=0; ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'cocacola'; flush privileges;`
+
+### Set credentials file
+
+[ pxc1/2/3 ] `sudo echo -e "[client]\nuser=root\npassword=cocacola" > /root/.my.cnf`
+
+### Add nodes to the cluster
+
+[ pxc2/3 ] `service mysql start`
+
+## Sysbench
+
+To simulate traffic to the cluster, we will use sybench from the app-pxc machine. 
+
+### Install sysbench
+
+Go to the app server (vagrant ssh app-pxc) and install the percona repo && the sysbench package:
+
+- yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm
+- yum install -y sysbench.x86_64
+
+### Prepare sysbench tables
+
+Before running any sysbench command, create the database "percona" in the cluster. Go to any pxc node and run: `create database percona;`
+
+#### Create the tables
+
+```
+sysbench /usr/share/sysbench/tests/include/oltp_legacy/oltp.lua --db-driver=mysql --mysql-host=pxc1 --mysql-user=percona --mysql-password=perconarocks --mysql-db=percona --mysql-table-engine=innodb --threads=2 --events=100000000 --oltp-tables-count=10 --oltp-table-size=10000 prepare
+```
+
+#### And now, run it to send traffic
+
+```
+sysbench /usr/share/sysbench/tests/include/oltp_legacy/oltp.lua --db-driver=mysql --mysql-host=pxc1 --mysql-user=percona --mysql-password=perconarocks --mysql-db=percona --mysql-table-engine=innodb --threads=2 --events=100000000 --oltp-tables-count=10 --oltp-table-size=10000 --time=1000000000 --report-interval=1 run
+```
+
+## PMM
+
+We will use PMM to get graphs from the metrics. The installation method will be via Docker container.
+
+### Installing PMM server (on the app-pxc server)
+
+- `yum install -y docker.x86_64`
+
+- `service docker start`
+
+- `docker pull percona/pmm-server:1;`
+
+- ```
+  docker create \
+     -v /opt/prometheus/data \
+     -v /opt/consul-data \
+     -v /var/lib/mysql \
+     -v /var/lib/grafana \
+     --name pmm-data \
+     percona/pmm-server:1 /bin/true;
+  ```
+
+- ```
+  docker run -d \
+     -p 80:80 \
+     --volumes-from pmm-data \
+     --name pmm-server \
+     --restart always \
+     percona/pmm-server:1;
+  ```
+
+### Installing PMM client (on the pxc nodes)
+
+- `yum install -y pmm-client.x86_64;`
+- `pmm-admin config --server 192.168.80.200`
+- `pmm-admin add mysql`
+
+# Cases
 
 ## Flow control
 
@@ -54,9 +158,17 @@ Better check them all: `show status like 'w%flow%';`
 ### Simulate FC
 
 - Disable PXC STRICT MODE: `set global pxc_strict_mode='DISABLED';`
+
 - Lock a table: `use percona; lock tables sbtest9 write;`
-- You will see messages like this in the error log: `2019-05-17T13:47:47.773417Z 8 [Note] WSREP: MDL conflict db=percona table=sbtest9 ticket=MDL_SHARED_NO_READ_WRITE solved by abort`
+
+- You will see messages like this in the error log:
+
+  ```
+   2019-05-17T13:47:47.773417Z 8 [Note] WSREP: MDL conflict db=percona table=sbtest9 ticket=MDL_SHARED_NO_READ_WRITE solved by abort
+  ```
+
 - Remove lock: `unlock tables;`
+
 - Set back strict mode: `set global pxc_strict_mode='ENFORCING';`
 
 ## PXC Strict Mode
@@ -126,6 +238,7 @@ Issues when no PK is available
 
 Let's create (properly) the table:
 
+```
 CREATE TABLE `sbtest100` (
   `id` int(10) unsigned NOT NULL,
   `k` int(10) unsigned NOT NULL DEFAULT '0',
@@ -133,14 +246,17 @@ CREATE TABLE `sbtest100` (
   `pad` char(60) NOT NULL DEFAULT '',
   KEY `k_1` (`k`)
 ) ENGINE=InnoDB;
+```
 
 And now let's populate it with 1 single big TRX:
 
-INSERT INTO sbtest100 SELECT * from sbtest1;
+`INSERT INTO sbtest100 SELECT * from sbtest1;`
 
 The strict mode will prevent to do such a crazy query. Let's override it:
 
+```
 set global pxc_strict_mode='DISABLED'; INSERT INTO sbtest100 SELECT * from sbtest1; set global pxc_strict_mode='ENFORCING';
+```
 
 ## Auto increment
 
