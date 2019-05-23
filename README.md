@@ -356,7 +356,24 @@ It is actually very similar to a workaround being used sometimes for asynchronou
 In PXC/Galera, this method practically means that when you change the OSU method like this in your session:
 
 ```
-  SET wsrep_OSU_method = 'RSU';
+ mysql> set session wsrep_OSU_method=RSU;
+Query OK, 0 rows affected (0.01 sec)
+
+  mysql> show global  variables like "wsrep_OSU_method";
++------------------+-------+
+| Variable_name    | Value |
++------------------+-------+
+| wsrep_OSU_method | TOI   |
++------------------+-------+
+1 row in set (0.01 sec)
+
+ALTER TABLE sbtest.sbtest1 ADD COLUMN d CHAR(100) NOT NULL DEFAULT '';
+
+insert into sbtest.sbtest1 values (0,1,"aa","bbb");
+
+mysql> set session wsrep_OSU_method=RSU;
+Query OK, 0 rows affected (0.01 sec)
+
 ```
 
 from now on, any DDL statement executed WILL NOT BE REPLICATED. Therefore, it will not block the other cluster nodes, but in order to keep the cluster in sync, you will have to repeat the same ALTER on each of them separately. 
@@ -405,6 +422,118 @@ This article applies to the following versions of technologies:
 | Percona XtraDB Cluster Versions | 5.5.x, 5.6.x, 5.7.x |
 | ------------------------------- | ------------------- |
 |                                 |                     |
+
+
+
+## Data Inconsistencies in PXC
+
+As Galera replication is designed for zero data inconsistency tolerance, this problem is even more important than in traditional replication. And although it is much less likely to end up with data being different between PXC cluster nodes, still such problem may occur.
+
+The usual error seen after a data inconsistency problem, may look like this:
+
+```
+2017-08-14T11:14:10.069796Z 8 [Warning] WSREP: RBR event 3 Delete_rows apply warning: 120, 1086247
+2017-08-14T11:14:10.070561Z 8 [ERROR] WSREP: Failed to apply trx: source: 76d04523-80e0-11e7-978a-62330ac18303 version: 3 local: 0 state: APPLYING flags: 1 conn_id: 21 trx_id: 69 seqnos (l: 9, g: 1086247, s: 1086246, d: 1086246, ts: 6398155343747335)
+2017-08-14T11:14:10.070582Z 8 [ERROR] WSREP: Failed to apply trx 1086247 4 times
+2017-08-14T11:14:10.070596Z 8 [ERROR] WSREP: Node consistency compromized, aborting...
+```
+
+So what could be the reason for data differences between cluster nodes, in **Galera based** **replication** environment?
+
+## List of the most typical culprits
+
+- Write explicitly set to not be replicated (by users having SUPER privilege), with:
+  - set [session] [sql_log_bin](https://dev.mysql.com/doc/refman/5.7/en/set-sql-log-bin.html)=0
+  - set [session] wsrep_on=0
+- Tables having an unsupported storage engine
+- Incompatible ALTER executed in RSU
+- log_slave_updates not enabled when PXC node acts as an async slave
+- Write [non-deterministic](https://dev.mysql.com/doc/refman/5.7/en/replication-rbr-safe-unsafe.html) in binlog_format=STATEMENT
+- [replication filters](https://www.percona.com/blog/2007/11/07/filtered-mysql-replication/) used
+- Node [re-]started with wsrep_provider not set, while still allowing connections (like during an upgrade step)
+- Faulty SST
+- [wsrep_preordered](https://www.percona.com/doc/percona-xtradb-cluster/LATEST/wsrep-system-index.html#wsrep_preordered) misused on async slave node
+- Writeset (internally binary log event) corrupted, due to bug: https://bugs.mysql.com/bug.php?id=72457
+- Split brain scenario, like when two partitioned cluster parts have Primary state at the same time, due to human error
+- Wrong node bootstrapped after [whole cluster down scenario](https://www.percona.com/blog/2014/09/01/galera-replication-how-to-recover-a-pxc-cluster/)
+- A node bootstrapped when other nodes already running
+- [pxc_strict_mode not same on all nodes](https://bugs.launchpad.net/percona-xtradb-cluster/+bug/1663759)
+- [tablespace encryption](https://dev.mysql.com/doc/refman/5.7/en/innodb-tablespace-encryption.html) not set equally on all nodes
+- Other [bugs](https://jira.percona.com/projects/PXC/issues/PXC-2039)
+
+## How to avoid data inconsistencies
+
+As you can see, there are many possible scenarios that can lead to this problem. And most of the cases can be avoided by few simple things:
+
+- use **PXC Strict Mode** enforced
+- avoid giving too much privileges to users, especially SUPER one
+- respect safe_to_bootstrap information from grastate.dat and update it very carefully when needed
+- avoid unsafe settings
+- be careful with maintenance
+
+## How to investigate
+
+To investigate a particular case in more detail, we will usually need to check:
+
+- full error logs from all nodes, even old ones with possible crash information
+- configuration files (my.cnf etc) plus show variables output, to get actual values if my.cnf modified after server startup
+- GRA* files created on aborted nodes - every failed write set will be logged in GRA_x_y.dat log file, where x=thread ID and y=seqno
+- if binlogs are enabled, check each node's history - a node who originated failed update, will have failed
+
+Please note that data differences may get undetected (no cluster aborts) for a long time or not at all, if affected data is not updated later. Or in case data differences do not span to primary/unique keys. Let's take such situation for instance:
+
+```
+CREATE TABLE `t2` (
+`id` int(11) NOT NULL,
+`a` int(11) DEFAULT '2',
+PRIMARY KEY (`id`)
+) ENGINE=InnoDB
+
+pxc-cluster-node-1> select * from test.t2;
++----+------+
+| id | a |
++----+------+
+| 3  | 3 |
++----+------+
+1 row in set (0.00 sec)
+
+pxc-cluster-node-3> select * from test.t2;
++----+------+
+| id | a |
++----+------+
+| 3  | 5 |
++----+------+
+1 row in set (0.00 sec)
+
+pxc-cluster-node-1> update test.t2 set a=10 where id=3;
+Query OK, 1 row affected (0.45 sec)
+Rows matched: 1 Changed: 1 Warnings: 0
+
+pxc-cluster-node-1> select * from test.t2;
++----+------+
+| id | a |
++----+------+
+| 3  | 10 |
++----+------+
+1 row in set (0.00 sec)
+
+pxc-cluster-node-3> select * from test.t2;
++----+------+
+| id | a |
++----+------+
+| 3  | 10 |
++----+------+
+1 row in set (0.00 sec)
+```
+
+As seen above, initial data inconsistency in column a, was completely undetected and overwritten by later update. It happened as PK values were same, and row identification used PK only.
+
+For these reasons, finding a root cause for replication error may be extremely difficult, if not impossible some times.
+
+We encourage to check cluster data consistency regularly with pt-table-checksum tool or similar.
+
+- https://www.percona.com/live/17/sessions/galera-cluster-data-consistency
+- https://www.percona.com/blog/2014/07/21/a-schema-change-inconsistency-with-galera-cluster-for-mysql/
 
 ## Multi thread
 
