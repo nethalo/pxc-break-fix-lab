@@ -1,0 +1,50 @@
+---
+- hosts: all
+  become: True
+  tasks:
+     - name: Install Percona Repo
+       yum:
+          name: https://repo.percona.com/yum/percona-release-latest.noarch.rpm
+          state: present
+
+     - name: Install Percona Server
+       yum:
+          name: "{{ item }}"
+          state: present
+       with_items:
+          - Percona-XtraDB-Cluster-57.x86_64
+          - vim
+          - ntp
+
+     - name: Enable binlogs
+       ini_file:
+          path: /etc/my.cnf
+          section: mysqld
+          option: "{{ item.option }}"
+          value: "{{ item.value }}"
+       with_items:
+          - { option: log_bin, value: "binlog" }
+          - { option: binlog_format, value: "row" }
+          - { option: log_slave_updates, value: "1" }
+
+     - name: Galera configuration
+       ini_file:
+          path: /etc/my.cnf
+          section: mysqld
+          option: "{{ item.option }}"
+          value: "{{ item.value }}"
+       with_items:
+          - { option: wsrep_provider, value: "/usr/lib64/galera3/libgalera_smm.so" }
+          - { option: wsrep_cluster_name, value: "dani-cluster" }
+          - { option: wsrep_node_address, value: "{{ ansible_facts.eth1.ipv4.address }}" }
+          - { option: wsrep_node_name, value: "{{ ansible_hostname }}" }
+          - { option: wsrep_cluster_address, value: "gcomm://192.168.80.10,192.168.80.20,192.168.80.30" }
+          - { option: wsrep_sst_method, value: "xtrabackup-v2" }
+          - { option: wsrep_sst_auth, value: "root:cocacola" }
+          - { option: innodb_autoinc_lock_mode, value: "2" }
+          - { option: default_storage_engine, value: "InnoDB" }
+          - { option: server_id, value: "10" }
+
+     - name: Disable SELinux
+       shell: |
+            sudo setenforce 0
