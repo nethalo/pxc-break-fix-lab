@@ -363,16 +363,63 @@ Query OK, 0 rows affected (0.01 sec)
 +------------------+-------+
 | Variable_name    | Value |
 +------------------+-------+
-| wsrep_OSU_method | TOI   |
+| wsrep_OSU_method | RSU   |
 +------------------+-------+
 1 row in set (0.01 sec)
 
-ALTER TABLE sbtest.sbtest1 ADD COLUMN d CHAR(100) NOT NULL DEFAULT '';
+2019-05-22T17:16:27.631556Z 0 [Note] WSREP: Member 2.0 (pxc1) desyncs itself from group
+2019-05-22T17:16:27.645724Z 0 [Note] WSREP: Shifting SYNCED -> DONOR/DESYNCED (TO: 715957)
+2019-05-22T17:16:27.683374Z 14 [Note] WSREP: Provider paused at bcf6669e-6db5-11e9-9815-0b05174fd831:715957 (48091)
 
-insert into sbtest.sbtest1 values (0,1,"aa","bbb");
 
-mysql> set session wsrep_OSU_method=RSU;
+mysql> show create table sbtest.sbtest1\G
+*************************** 1. row ***************************
+       Table: sbtest1
+Create Table: CREATE TABLE `sbtest1` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `k` int(10) unsigned NOT NULL DEFAULT '0',
+  `c` char(120) NOT NULL DEFAULT '',
+  `pad` char(60) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`),
+  KEY `c` (`c`)
+) ENGINE=InnoDB AUTO_INCREMENT=3000003 DEFAULT CHARSET=latin1 MAX_ROWS=1000000
+1 row in set (0.00 sec)
+
+mysql> ALTER TABLE sbtest.sbtest1 ADD COLUMN d CHAR(100) NOT NULL DEFAULT '';                                                                                        Query OK, 0 rows affected (54.17 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> show create table sbtest.sbtest1\G
+*************************** 1. row ***************************
+       Table: sbtest1
+Create Table: CREATE TABLE `sbtest1` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `k` int(10) unsigned NOT NULL DEFAULT '0',
+  `c` char(120) NOT NULL DEFAULT '',
+  `pad` char(60) NOT NULL DEFAULT '',
+  `d` char(100) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`),
+  KEY `c` (`c`)
+) ENGINE=InnoDB AUTO_INCREMENT=3000003 DEFAULT CHARSET=latin1 MAX_ROWS=1000000
+1 row in set (0.06 sec)
+
+mysql> set session wsrep_OSU_method=TOI;
 Query OK, 0 rows affected (0.01 sec)
+
+pxc2:
+
+mysql> show create table sbtest.sbtest1\G
+*************************** 1. row ***************************
+       Table: sbtest1
+Create Table: CREATE TABLE `sbtest1` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `k` int(10) unsigned NOT NULL DEFAULT '0',
+  `c` char(120) NOT NULL DEFAULT '',
+  `pad` char(60) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`),
+  KEY `c` (`c`)
+) ENGINE=InnoDB AUTO_INCREMENT=3000001 DEFAULT CHARSET=latin1 MAX_ROWS=1000000
+1 row in set (0.03 sec)
+
 
 ```
 
@@ -432,10 +479,84 @@ As Galera replication is designed for zero data inconsistency tolerance, this pr
 The usual error seen after a data inconsistency problem, may look like this:
 
 ```
-2017-08-14T11:14:10.069796Z 8 [Warning] WSREP: RBR event 3 Delete_rows apply warning: 120, 1086247
-2017-08-14T11:14:10.070561Z 8 [ERROR] WSREP: Failed to apply trx: source: 76d04523-80e0-11e7-978a-62330ac18303 version: 3 local: 0 state: APPLYING flags: 1 conn_id: 21 trx_id: 69 seqnos (l: 9, g: 1086247, s: 1086246, d: 1086246, ts: 6398155343747335)
-2017-08-14T11:14:10.070582Z 8 [ERROR] WSREP: Failed to apply trx 1086247 4 times
-2017-08-14T11:14:10.070596Z 8 [ERROR] WSREP: Node consistency compromized, aborting...
+pxc1:
+
+mysql> show session variables like "wsrep_on";
++---------------+-------+
+| Variable_name | Value |
++---------------+-------+
+| wsrep_on      | ON    |
++---------------+-------+
+1 row in set (0.16 sec)
+mysql> set session wsrep_on=0;
+Query OK, 0 rows affected (0.09 sec)
+
+mysql> show session variables like "wsrep_on";
++---------------+-------+
+| Variable_name | Value |
++---------------+-------+
+| wsrep_on      | OFF   |
++---------------+-------+
+1 row in set (0.13 sec)
+
+pxc1:mysql>select max(id) from sbtest.sbtest1;
++---------+
+| max(id) |
++---------+
+| 3000000 |
++---------+
+1 row in set (0.03 sec)
+
+pxc1:mysql>delete from sbtest.sbtest1 where id=3000000;
+Query OK, 1 row affected (0.16 sec)
+
+pxc1:mysql>set session wsrep_on=1;
+Query OK, 0 rows affected (0.06 sec)
+
+
+pxc2:mysql>select max(id) from sbtest.sbtest1;
++---------+
+| max(id) |
++---------+
+| 3000000 |
++---------+
+1 row in set (0.02 sec)
+pxc1 log:
+
+2019-05-22T17:17:21.649623Z 14 [Note] WSREP: resuming provider at 48091
+2019-05-22T17:17:21.650006Z 14 [Note] WSREP: Provider resumed.
+2019-05-22T17:17:21.653964Z 0 [Note] WSREP: Member 2.0 (pxc1) resyncs itself to group
+2019-05-22T17:17:21.654001Z 0 [Note] WSREP: Shifting DONOR/DESYNCED -> JOINED (TO: 715957)
+2019-05-22T17:17:21.712542Z 0 [Note] WSREP: Member 2.0 (pxc1) synced with group.
+2019-05-22T17:17:21.712722Z 0 [Note] WSREP: Shifting JOINED -> SYNCED (TO: 715957)
+2019-05-22T17:17:21.713817Z 10 [Note] WSREP: Synchronized with group, ready for connections
+2019-05-22T17:17:21.714784Z 10 [Note] WSREP: Setting wsrep_ready to true
+
+pxc2:mysql>delete from sbtest.sbtest1 where id=3000000;
+Query OK, 1 row affected (0.09 sec)
+
+pxc1 log:
+2019-05-22T17:30:18.539589Z 5 [ERROR] WSREP: Failed to apply trx 746293 4 times
+2019-05-22T17:30:18.539601Z 5 [ERROR] WSREP: Node consistency compromised, aborting...
+.
+..
+...
+2019-05-22T17:30:59.991784Z 0 [Note] WSREP: GCache history reset: bcf6669e-6db5-11e9-9815-0b05174fd831:0 -> 00000000-0000-0000-0000-000000000000:-1
+2019-05-22T17:30:59.993338Z 0 [Note] WSREP: Assign initial position for certification: -1, protocol version: -1
+2019-05-22T17:30:59.993652Z 0 [Note] WSREP: Preparing to initiate SST/IST
+2019-05-22T17:30:59.993677Z 0 [Note] WSREP: Starting replication
+2019-05-22T17:30:59.993704Z 0 [Note] WSREP: Setting initial position to 00000000-0000-0000-0000-000000000000:-1
+.
+..
+...
+2019-05-22T17:32:51.781238Z 0 [Note] WSREP: SST leaving flow control
+2019-05-22T17:32:51.781244Z 0 [Note] WSREP: Shifting JOINER -> JOINED (TO: 749616)
+2019-05-22T17:32:53.529636Z 0 [Note] WSREP: Member 0.0 (pxc1) synced with group.
+2019-05-22T17:32:53.529669Z 0 [Note] WSREP: Shifting JOINED -> SYNCED (TO: 749696)
+2019-05-22T17:32:54.848298Z 11 [Note] WSREP: Synchronized with group, ready for connections
+2019-05-22T17:32:54.848334Z 11 [Note] WSREP: Setting wsrep_ready to true
+2019-05-22T17:32:54.848508Z 11 [Note] WSREP: wsrep_notify_cmd is not defined, skipping notification.
+
 ```
 
 So what could be the reason for data differences between cluster nodes, in **Galera based** **replication** environment?
