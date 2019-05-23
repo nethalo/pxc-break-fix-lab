@@ -1,0 +1,3 @@
+# Auto increment
+
+Galera adjusts the auto_increment_increment and auto_increment_offset values according to the number of members in a cluster. So, for a 3-node cluster, auto_increment_increment  will be “3” and auto_increment_offset  from “1” to “3” (depending on the node). If a number of nodes change later, these are updated immediately. This feature can be disabled using the wsrep_auto_increment_control setting. If needed, these settings can be set manually.
