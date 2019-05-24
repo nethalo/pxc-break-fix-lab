@@ -14,7 +14,7 @@ This tutorial assume that you are somehow familar with the Percona XtraDB Cluste
 
 # Cases
 
-## [Flow control](docs/Flow_control.md)
+## [Flow control](docs/Flow_control.MD)
 
 ## [PXC Strict Mode](docs/PXC_Strict_Mode.md)
 
