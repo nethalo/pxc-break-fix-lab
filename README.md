@@ -38,6 +38,8 @@ This tutorial assume that you are somehow familar with the Percona XtraDB Cluste
 
 ## [Schema Requirements](docs/Schema_Requirements.md)
 
+## [Data Consistency](docs/Data_Consistency.md)
+
 ## [Multi thread](docs/Multi_thread.md)
 
 ## [Partition Handling (Network Hiccup)](docs/Partition_Handling.md)
