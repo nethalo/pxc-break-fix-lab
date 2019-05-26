@@ -10,7 +10,7 @@ This tutorial assume that you are somehow familar with the Percona XtraDB Cluste
 
 ## [Sysbench](docs/Sysbench.md)
 
-## [PMM](docs/Sysbench.md)
+## [PMM](docs/PMM.md)
 
 # Cases
 
