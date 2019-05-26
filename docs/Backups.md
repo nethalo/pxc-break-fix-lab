@@ -57,7 +57,7 @@ Avoiding SST during resync:
   - `show status where variable_name in ('wsrep_local_recv_queue_max','wsrep_local_recv_queue_min');`
 - Increase the size of gcache on the node you're using to backup
 - Delay gcache purging to allow IST 
-  - `set gcache.freeze_purge_at_seqno=now;`
+  - `set GLOBAL wsrep_provider_options = "gcache.freeze_purge_at_seqno=now";`
 
 
 
