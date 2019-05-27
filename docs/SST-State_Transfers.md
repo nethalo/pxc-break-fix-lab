@@ -57,4 +57,4 @@ There are three options* for a SST operation in PXC 5.7
 - Remove the datadir: `rm -rf <datadir>/*`
 - Remove the metadata used to calculate IST vs SST: `rm -f <datadir>/grastate.dat`
 
-# [SST Simulations Lab](SST Simulations Lab.md)
+# [SST Simulations Lab](SST_Simulations_Lab.md)
