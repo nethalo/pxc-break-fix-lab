@@ -16,7 +16,7 @@ Besides the omnipresent topic on databases, and our reason to live: **Performanc
 
 All the scenarios will take place on a basic 3-node PXC Cluster
 
-![cluster](cluster.png)
+<img src="cluster.png" alt="cluster" width="450px"/>
 
 Let's create it. 
 
