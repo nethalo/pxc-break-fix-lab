@@ -9,6 +9,4 @@ Incremental is used when a node has been out of a cluster for some time, and onc
 
 Full SST is helpful if incremental is not possible, especially when a new node is added to the cluster. SST automatically provisions the node with fresh data taken as a snapshot from one of the running nodes (donor).
 
-
-
-## [SST - State Snapshot Transfer](SST - State Snapshot Transfer.md)
+## [SST - State Snapshot Transfer](SST-State_Transfers.md)
