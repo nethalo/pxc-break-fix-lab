@@ -24,26 +24,6 @@ Creation of the VMs and the cluster are available at the Environment link: [here
 
 # Galera key scenarios
 
-## Node Sync
-
-Getting the pieces together. You only have a cluster when you have the nodes connected and synced.
-
-### [State Transfers](docs/State_Transfers.md)
-
-### [Group communication](docs/Group_communication.md)
-
-## Network
-
-The only sign of a node failure is the loss of connection to the node as seen by other nodes. That's why understanding network in a galera context is key to a happy PXC journeys
-
-### [Quorum](docs/Quorum.md)
-
-### [WAN](docs/WAN.md)
-
-### [Partition Handling (Network Hiccup)](docs/Partition_Handling.md)
-
-### [GTID](docs/GTID.md)
-
 ## Data Consistency
 
 ### [Flow control](docs/Flow_control.MD)
@@ -60,7 +40,25 @@ The only sign of a node failure is the loss of connection to the node as seen by
 
 ### [Schema Requirements](docs/Schema_Requirements.md)
 
-### [Multi thread](docs/Multi_thread.md)	
+### [Multi thread](docs/Multi_thread.md)
 
-## 
+## Network
+
+The only sign of a node failure is the loss of connection to the node as seen by other nodes. That's why understanding network in a galera context is key to a happy PXC journeys
+
+### [Quorum](docs/Quorum.md)
+
+### [WAN](docs/WAN.md)
+
+### [Partition Handling (Network Hiccup)](docs/Partition_Handling.md)
+
+### [GTID](docs/GTID.md)
+
+## Node Sync
+
+Getting the pieces together. You only have a cluster when you have the nodes connected and synced.
+
+### [State Transfers](docs/State_Transfers.md)
+
+### [Group communication](docs/Group_communication.md)
 
