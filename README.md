@@ -6,29 +6,21 @@ This tutorial assume that you are somehow familar with the Percona XtraDB Cluste
 
 ## Galera focus points
 
-When talking about Galera, the key points consists on the following layers:
+When talking about Galera, the main key points are the following:
 
-- State Transfer: Boostraping, Node joining/leaving. Data replication
-- Quorum: Primary Component. Cluster stability
-- Data consistency: Making Multi-Master (Certification), Flow Control.
+- State Transfer (Syncing the nodes): Boostraping, Node joining/leaving. Data replication.
+- Network connection (Maintain Cluster as a whole): Quorum, Primary Component, Cluster Stability.
+- Data consistency (Guarantee data is the same): Certification, Flow Control.
 
 Besides the omnipresent topic on databases, and our reason to live: **Performance.**
 
+# Environment
+
 All the scenarios will take place on a basic 3-node PXC Cluster
 
-<img src="cluster.png" alt="cluster" width="450px"/>
+<img src="cluster.png" alt="cluster" width="400px"/>
 
-Let's create it. 
-
-### Step 1: [Build the environment](docs/Build_the_environment.md)
-
-### Step 2: [Launch the cluster](docs/Launch_the_cluster.md)
-
-
-
-## [Sysbench](docs/Sysbench.md)
-
-## [PMM](docs/PMM.md)
+Creation of the VMs and the cluster are available at the Environment link: [here](docs/environment.md)
 
 # Cases
 
