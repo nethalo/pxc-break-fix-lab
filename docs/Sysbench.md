@@ -22,19 +22,34 @@ create database percona;
 We just need a "app" like user. We will call it "percona"
 
 ```
-CREATE USER 'percona'@'%' IDENTIFIED BY 'perconarocks'; grant all privileges on *.* to 'percona'@'%'; flush privileges;
+CREATE USER 'percona'@'%' IDENTIFIED BY 'perconarocks'; 
+GRANT all privileges on *.* to 'percona'@'%'; 
+FLUSH PRIVILEGES;
 ```
 
 ### Create the tables
 
 ```
-sysbench /usr/share/sysbench/tests/include/oltp_legacy/oltp.lua --db-driver=mysql --mysql-host=pxc1 --mysql-user=percona --mysql-password=perconarocks --mysql-db=percona --mysql-table-engine=innodb --threads=2 --events=100000000 --oltp-tables-count=10 --oltp-table-size=10000 prepare
+sysbench /usr/share/sysbench/tests/include/oltp_legacy/oltp.lua --db-driver=mysql \
+--mysql-host=mysql1-T21 \
+--mysql-user=percona --mysql-password=perconarocks \
+--mysql-db=percona --mysql-table-engine=innodb \
+--threads=2 --events=100000000 \
+--oltp-tables-count=10 --oltp-table-size=10000 \
+prepare
 ```
 
 ### And now, run it to send traffic
 
 ```
-sysbench /usr/share/sysbench/tests/include/oltp_legacy/oltp.lua --db-driver=mysql --mysql-host=pxc1 --mysql-user=percona --mysql-password=perconarocks --mysql-db=percona --mysql-table-engine=innodb --threads=2 --events=100000000 --oltp-tables-count=10 --oltp-table-size=10000 --time=1000000000 --report-interval=1 run
+sysbench /usr/share/sysbench/tests/include/oltp_legacy/oltp.lua --db-driver=mysql \
+--mysql-host=mysql1-T21 \
+--mysql-user=percona --mysql-password=perconarocks \
+--mysql-db=percona --mysql-table-engine=innodb \
+--threads=2 --events=100000000 \
+--oltp-tables-count=10 --oltp-table-size=10000 \
+--time=1000000000 --report-interval=1 \
+run
 ```
 
 ## 
