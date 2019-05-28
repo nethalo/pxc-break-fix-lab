@@ -11,14 +11,18 @@ Go to the app server (vagrant ssh app-pxc) and install the percona repo && the s
 
 ## Prepare sysbench tables
 
-Before running any sysbench command, create the database "percona" in the cluster. Go to any pxc node and run: `create database percona;`
+Before running any sysbench command, create the database "percona" in the cluster. Go to any pxc node and run: 
+
+```
+create database percona;
+```
 
 ## Create MySQL User for sysbench to use
 
 We just need a "app" like user. We will call it "percona"
 
 ```
-CREATE USER 'percona'@'%' IDENTIFIED BY 'perconarocks';
+CREATE USER 'percona'@'%' IDENTIFIED BY 'perconarocks'; grant all privileges on *.* to 'percona'@'%'; flush privileges;
 ```
 
 ### Create the tables
