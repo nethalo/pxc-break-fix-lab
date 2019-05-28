@@ -9,7 +9,9 @@ Now that the VMs are running, the next step is to get a fully functional PXC clu
 ## Change temp root password
 
 [ pxc1 ] `cat /var/log/mysqld.log | grep password`
+
 [ pxc1 ] `mysql -uroot -p`
+
 [ pxc1 ] `SET SESSION sql_log_bin=0; ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'cocacola'; flush privileges;`
 
 ## Set credentials file
