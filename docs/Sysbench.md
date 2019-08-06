@@ -31,7 +31,7 @@ FLUSH PRIVILEGES;
 
 ```
 sysbench /usr/share/sysbench/tests/include/oltp_legacy/oltp.lua --db-driver=mysql \
---mysql-host=mysql1-T21 \
+--mysql-host=pxc1 \
 --mysql-user=percona --mysql-password=perconarocks \
 --mysql-db=percona --mysql-table-engine=innodb \
 --threads=2 --events=100000000 \
@@ -43,7 +43,7 @@ prepare
 
 ```
 sysbench /usr/share/sysbench/tests/include/oltp_legacy/oltp.lua --db-driver=mysql \
---mysql-host=mysql1-T21 \
+--mysql-host=pxc1 \
 --mysql-user=percona --mysql-password=perconarocks \
 --mysql-db=percona --mysql-table-engine=innodb \
 --threads=2 --events=100000000 \
